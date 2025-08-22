@@ -1,0 +1,15 @@
+# Include all Python files from root
+include = ["*.py", "**/*.py"]
+
+# Or explicitly set the root
+src = ["."]
+
+# Exclude specific directories if needed
+exclude = [
+    ".git",
+    "__pycache__",
+    ".venv",
+    "venv",
+    "build",
+    "dist"
+]
