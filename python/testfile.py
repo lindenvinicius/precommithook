@@ -5,5 +5,5 @@ def bad_function(x, y):    # bad spacing
     if x == y:   # missing spaces around operator
         return "bad"    # missing space
     else:
-        return     None
+        return  None
 # trailing whitespace here
