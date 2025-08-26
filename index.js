@@ -1,4 +1,5 @@
-let 
+let didShowMessage = false;
+
 function showMessage(){
     const message ='Testing ESLINT'
 
