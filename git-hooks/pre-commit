@@ -1,6 +1,8 @@
 #!/bin/bash
 
-# Git pre-commit hook for Ruff linting
+# Git pre-commit hook for Ruff (Python) + ESLint (JS/TS)
+# Place this file in .git/hooks/pre-commit and make it executable with:
+# chmod +x .git/hooks/pre-commit
 
 # Colors for output
 RED='\033[0;31m'
@@ -12,95 +14,96 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}Running pre-commit linters (Ruff + ESLint)...${NC}"
 echo "----------------------------------------"
 
-# Check if ruff is installed
-if ! command -v ruff &> /dev/null; then
-    echo -e "${RED}Error: Ruff is not installed!${NC}"
-    echo "Please install ruff using: pip install ruff"
-    exit 1
-fi
-
-# Get the root directory of the git repository
+# Repo root
 ROOT_DIR=$(git rev-parse --show-toplevel)
 
-# Run ruff check on the root folder
-echo -e "${YELLOW}Checking Python files for linting issues...${NC}"
-echo ""
+# Where ESLint (eslint.config.* and node_modules) lives:
+ESLINT_CWD="$ROOT_DIR"        # change to "$ROOT_DIR/frontend" if needed
 
-# Run ruff and capture the output
+################################
+# Ruff (Python)
+################################
+if ! command -v ruff >/dev/null 2>&1; then
+  echo -e "${RED}Error: Ruff is not installed!${NC}"
+  echo "Install with: pip install ruff"
+  exit 1
+fi
+
+echo -e "${YELLOW}Ruff: checking Python files...${NC}"
 RUFF_OUTPUT=$(ruff check "$ROOT_DIR" 2>&1)
 RUFF_EXIT_CODE=$?
 
-# Check if there are any linting issues
 if [ $RUFF_EXIT_CODE -eq 0 ]; then
-    echo -e "${GREEN}✓ No linting issues found!${NC}"
-    echo "----------------------------------------"
-    echo -e "${GREEN}Pre-commit check passed successfully.${NC}"
-    exit 0
+  echo -e "${GREEN}✓ Ruff: no issues${NC}"
 else
-    echo -e "${RED}✗ Linting issues found!${NC}"
-    echo ""
-    echo "Linting problems detected in the following locations:"
-    echo "======================================================"
-    echo "$RUFF_OUTPUT"
-    echo "======================================================"
-    
-    # Count the number of issues
-    ISSUE_COUNT=$(echo "$RUFF_OUTPUT" | grep -c "^$ROOT_DIR")
-    if [ $ISSUE_COUNT -gt 0 ]; then
-        echo ""
-        echo -e "${YELLOW}Total issues found: $ISSUE_COUNT${NC}"
-    fi
-    
-    echo ""
-    echo -e "${YELLOW}Options:${NC}"
-    echo "1. Fix the issues manually and try committing again"
-    echo "2. Run 'ruff check --fix .' to auto-fix some issues"
-    echo "3. Run 'ruff format .' to format your code"
-    echo "4. Use 'git commit --no-verify' to skip this check (not recommended)"
-    echo ""
-    echo -e "${RED}Commit aborted due to linting errors.${NC}"
-    exit 1
+  echo -e "${RED}✗ Ruff: issues found${NC}"
+  echo "======================================================"
+  echo "$RUFF_OUTPUT"
+  echo "======================================================"
+  ISSUE_COUNT=$(echo "$RUFF_OUTPUT" | grep -c "^$ROOT_DIR")
+  if [ $ISSUE_COUNT -gt 0 ]; then
+    echo -e "${YELLOW}Total Ruff issues: $ISSUE_COUNT${NC}"
+  fi
 fi
 
-# ESLint pre-commit: check staged JS/TS files inside a specific folder
-set -euo pipefail
-
-FOLDER_TO_LINT="."
-
-EXT_REGEX='\.(js|jsx|ts|tsx|mjs|cjs)$'
-
-ROOT="$(git rev-parse --show-toplevel)"
-cd "$ROOT"
-
-# Prefer local ESLint; fall back to global if present
-if npx --no-install eslint -v >/dev/null 2>&1; then
-  ESLINT='npx --no-install eslint'
-elif command -v eslint >/dev/null 2>&1; then
-  ESLINT='eslint'
-else
-  echo "❌ ESLint not found. Install it locally with: npm i -D eslint"
+################################
+# ESLint (JS/TS) — root + subfolders
+################################
+if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+  echo -e "${RED}Error: Node.js and npm are required for ESLint.${NC}"
   exit 1
 fi
 
-# Collect staged files in the target folder (add/modify/rename) using NUL delimiters
-mapfile -d '' FILES < <(
-  git diff --cached --name-only -z --diff-filter=ACMR -- "$FOLDER_TO_LINT" \
-  | grep -zE "$EXT_REGEX" || true
-)
+echo -e "${YELLOW}ESLint: checking JS/TS across root and subfolders...${NC}"
+pushd "$ESLINT_CWD" >/dev/null 2>&1
 
-if (( ${#FILES[@]} == 0 )); then
-  echo "ESLint: no staged JS/TS files in '$FOLDER_TO_LINT'."
+# Ensure ESLint is available (local devDependency preferred)
+npx --no -- eslint -v >/dev/null 2>&1
+ESLINT_AVAILABLE=$?
+if [ $ESLINT_AVAILABLE -ne 0 ]; then
+  echo -e "${RED}Error: ESLint not installed in this project.${NC}"
+  echo "Install with: npm i -D eslint @eslint/js"
+  echo "For TypeScript: npm i -D typescript typescript-eslint"
+  popd >/dev/null 2>&1
+  exit 1
+fi
+
+# Lint all JS/TS files in root + subfolders (no auto-fix). 
+# --no-error-on-unmatched-pattern avoids failure if none exist.
+# --no-warn-ignored avoids noise from ignored dirs (node_modules, dist, etc.)
+ESLINT_OUTPUT=$(npx --no -- eslint "**/*.{js,jsx,ts,tsx}" \
+  --format stylish \
+  --no-error-on-unmatched-pattern \
+  --no-warn-ignored 2>&1)
+ESLINT_EXIT_CODE=$?
+
+popd >/dev/null 2>&1
+
+if [ $ESLINT_EXIT_CODE -eq 0 ]; then
+  echo -e "${GREEN}✓ ESLint: no errors${NC}"
+else
+  echo -e "${RED}✗ ESLint: errors detected${NC}"
+  echo "======================================================"
+  echo "$ESLINT_OUTPUT"
+  echo "======================================================"
+  echo -e "${YELLOW}Tip:${NC} Fix the reported errors and commit again."
+  # (Warnings do not fail; to fail on warnings too, add --max-warnings=0 above)
+fi
+
+################################
+# Final decision
+################################
+if [ $RUFF_EXIT_CODE -eq 0 ] && [ $ESLINT_EXIT_CODE -eq 0 ]; then
+  echo "----------------------------------------"
+  echo -e "${GREEN}Pre-commit check passed successfully.${NC}"
   exit 0
-fi
-
-echo "ESLint: checking ${#FILES[@]} file(s) in '$FOLDER_TO_LINT'..."
-# Run ESLint on the staged file list
-if ! printf '%s\0' "${FILES[@]}" | xargs -0 $ESLINT --format=stylish; then
-  echo
-  echo "❌ ESLint found problems. Fix them and re-stage before committing."
-  # To also fail on warnings, add: --max-warnings=0
+else
+  echo "----------------------------------------"
+  echo -e "${RED}Commit aborted due to linting errors.${NC}"
+  echo ""
+  echo -e "${YELLOW}Options:${NC}"
+  echo "1) Fix the issues and commit again"
+  echo "2) For Python, try 'ruff check --fix .' and 'ruff format .' locally (not in hook)"
+  echo "3) Use 'git commit --no-verify' to skip checks (not recommended)"
   exit 1
 fi
-
-echo "✅ ESLint passed."
-exit 0
