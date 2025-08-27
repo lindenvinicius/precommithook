@@ -17,93 +17,94 @@ echo "----------------------------------------"
 # Repo root
 ROOT_DIR=$(git rev-parse --show-toplevel)
 
-# Where ESLint (eslint.config.* and node_modules) lives:
-ESLINT_CWD="$ROOT_DIR"        # change to "$ROOT_DIR/frontend" if needed
+# Where ESLint config/node_modules live (change if project is in subfolder)
+ESLINT_CWD="$ROOT_DIR"   # e.g., "$ROOT_DIR/frontend"
 
 ################################
 # Ruff (Python)
 ################################
 if ! command -v ruff >/dev/null 2>&1; then
-  echo -e "${RED}Error: Ruff is not installed!${NC}"
-  echo "Install with: pip install ruff"
-  exit 1
-fi
-
-echo -e "${YELLOW}Ruff: checking Python files...${NC}"
-RUFF_OUTPUT=$(ruff check "$ROOT_DIR" 2>&1)
-RUFF_EXIT_CODE=$?
-
-if [ $RUFF_EXIT_CODE -eq 0 ]; then
-  echo -e "${GREEN}✓ Ruff: no issues${NC}"
+    echo -e "${RED}Error: Ruff is not installed!${NC}"
+    echo "Please install ruff using: pip install ruff"
+    RUFF_EXIT_CODE=1
 else
-  echo -e "${RED}✗ Ruff: issues found${NC}"
-  echo "======================================================"
-  echo "$RUFF_OUTPUT"
-  echo "======================================================"
-  ISSUE_COUNT=$(echo "$RUFF_OUTPUT" | grep -c "^$ROOT_DIR")
-  if [ $ISSUE_COUNT -gt 0 ]; then
-    echo -e "${YELLOW}Total Ruff issues: $ISSUE_COUNT${NC}"
-  fi
+    echo -e "${YELLOW}Checking Python files for linting issues (Ruff)...${NC}"
+    echo ""
+    RUFF_OUTPUT=$(ruff check "$ROOT_DIR" 2>&1)
+    RUFF_EXIT_CODE=$?
+    if [ $RUFF_EXIT_CODE -eq 0 ]; then
+        echo -e "${GREEN}✓ Ruff: No linting issues found!${NC}"
+    else
+        echo -e "${RED}✗ Ruff: Linting issues found!${NC}"
+        echo "======================================================"
+        echo "$RUFF_OUTPUT"
+        echo "======================================================"
+        ISSUE_COUNT=$(echo "$RUFF_OUTPUT" | grep -c "^$ROOT_DIR")
+        if [ $ISSUE_COUNT -gt 0 ]; then
+            echo -e "${YELLOW}Total Ruff issues: $ISSUE_COUNT${NC}"
+        fi
+    fi
 fi
 
 ################################
 # ESLint (JS/TS) — root + subfolders
 ################################
-if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
-  echo -e "${RED}Error: Node.js and npm are required for ESLint.${NC}"
-  exit 1
-fi
+# Only attempt if Node/npm exist
+if command -v node >/dev/null 2>&1 && command -v npm >/dev/null 2>&1; then
+    echo ""
+    echo -e "${YELLOW}Checking JavaScript/TypeScript files (ESLint, root + subfolders)...${NC}"
+    echo ""
 
-echo -e "${YELLOW}ESLint: checking JS/TS across root and subfolders...${NC}"
-pushd "$ESLINT_CWD" >/dev/null 2>&1
+    pushd "$ESLINT_CWD" >/dev/null 2>&1
 
-# Ensure ESLint is available (local devDependency preferred)
-npx --no -- eslint -v >/dev/null 2>&1
-ESLINT_AVAILABLE=$?
-if [ $ESLINT_AVAILABLE -ne 0 ]; then
-  echo -e "${RED}Error: ESLint not installed in this project.${NC}"
-  echo "Install with: npm i -D eslint @eslint/js"
-  echo "For TypeScript: npm i -D typescript typescript-eslint"
-  popd >/dev/null 2>&1
-  exit 1
-fi
+    # Ensure ESLint is available (prefer local devDependency)
+    npx --no -- eslint -v >/dev/null 2>&1
+    ESLINT_AVAILABLE=$?
 
-# Lint all JS/TS files in root + subfolders (no auto-fix). 
-# --no-error-on-unmatched-pattern avoids failure if none exist.
-# --no-warn-ignored avoids noise from ignored dirs (node_modules, dist, etc.)
-ESLINT_OUTPUT=$(npx --no -- eslint "**/*.{js,jsx,ts,tsx}" \
-  --format stylish \
-  --no-error-on-unmatched-pattern \
-  --no-warn-ignored 2>&1)
-ESLINT_EXIT_CODE=$?
+    if [ $ESLINT_AVAILABLE -ne 0 ]; then
+        echo -e "${RED}Error: ESLint is not installed in this project.${NC}"
+        echo "Install with: npm i -D eslint @eslint/js"
+        echo "For TypeScript: npm i -D typescript typescript-eslint"
+        ESLINT_EXIT_CODE=1
+    else
+        # Search root + subfolders. No autofix. Warnings allowed.
+        ESLINT_OUTPUT=$(npx --no -- eslint "**/*.{js,jsx,ts,tsx}" \
+            --format stylish \
+            --no-error-on-unmatched-pattern \
+            --no-warn-ignored 2>&1)
+        ESLINT_EXIT_CODE=$?
 
-popd >/dev/null 2>&1
+        if [ $ESLINT_EXIT_CODE -eq 0 ]; then
+            echo -e "${GREEN}✓ ESLint: No errors found!${NC}"
+        else
+            echo -e "${RED}✗ ESLint: Errors detected!${NC}"
+            echo "======================================================"
+            echo "$ESLINT_OUTPUT"
+            echo "======================================================"
+            echo -e "${YELLOW}Tip:${NC} fix the reported errors and commit again."
+            # To also fail on warnings, add --max-warnings=0 to the ESLint command above.
+        fi
+    fi
 
-if [ $ESLINT_EXIT_CODE -eq 0 ]; then
-  echo -e "${GREEN}✓ ESLint: no errors${NC}"
+    popd >/dev/null 2>&1
 else
-  echo -e "${RED}✗ ESLint: errors detected${NC}"
-  echo "======================================================"
-  echo "$ESLINT_OUTPUT"
-  echo "======================================================"
-  echo -e "${YELLOW}Tip:${NC} Fix the reported errors and commit again."
-  # (Warnings do not fail; to fail on warnings too, add --max-warnings=0 above)
+    echo -e "${YELLOW}Skipping ESLint: Node.js/npm not found.${NC}"
+    ESLINT_EXIT_CODE=0
 fi
 
 ################################
-# Final decision
+# Final decision (don’t exit early)
 ################################
-if [ $RUFF_EXIT_CODE -eq 0 ] && [ $ESLINT_EXIT_CODE -eq 0 ]; then
-  echo "----------------------------------------"
-  echo -e "${GREEN}Pre-commit check passed successfully.${NC}"
-  exit 0
+echo "----------------------------------------"
+if [ "${RUFF_EXIT_CODE:-0}" -eq 0 ] && [ "${ESLINT_EXIT_CODE:-0}" -eq 0 ]; then
+    echo -e "${GREEN}Pre-commit check passed successfully.${NC}"
+    exit 0
 else
-  echo "----------------------------------------"
-  echo -e "${RED}Commit aborted due to linting errors.${NC}"
-  echo ""
-  echo -e "${YELLOW}Options:${NC}"
-  echo "1) Fix the issues and commit again"
-  echo "2) For Python, try 'ruff check --fix .' and 'ruff format .' locally (not in hook)"
-  echo "3) Use 'git commit --no-verify' to skip checks (not recommended)"
-  exit 1
+    echo -e "${RED}Commit aborted due to linting errors.${NC}"
+    echo ""
+    echo -e "${YELLOW}Options:${NC}"
+    echo "1. Fix the issues and try committing again"
+    echo "2. For Python, run 'ruff check --fix .' and 'ruff format .' locally (optional)"
+    echo "3. Use 'git commit --no-verify' to skip checks (not recommended)"
+    exit 1
 fi
