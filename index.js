@@ -105,6 +105,3 @@ class Calculator {
     return Math.sqrt(value);
   }
 }
-
-// Export for use in other modules
-module.exports = Calculator;
