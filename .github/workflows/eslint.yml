@@ -1,0 +1,41 @@
+name: Lint (ESLint)
+
+on:
+  pull_request:
+    branches: [ main ]
+    # Run only when JS/TS or lint config changes (speeds things up)
+    paths:
+      - "**/*.js"
+      - "**/*.jsx"
+      - "**/*.ts"
+      - "**/*.tsx"
+      - ".eslint*"
+      - "package.json"
+      - "package-lock.json"
+  push:
+    branches: [ main ]
+
+jobs:
+  eslint:
+    name: Run ESLint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps (clean)
+        run: npm ci
+
+      # Optional: show ESLint problems as GitHub annotations
+      # (works out of the box since ESLint emits standard file:line:col output)
+
+      - name: Lint
+        run: npm run lint
