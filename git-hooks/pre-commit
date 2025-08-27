@@ -18,7 +18,7 @@ echo "----------------------------------------"
 ROOT_DIR=$(git rev-parse --show-toplevel)
 
 # Where ESLint config/node_modules live (change if project is in subfolder)
-ESLINT_CWD="$ROOT_DIR/."   # e.g., "$ROOT_DIR/frontend"
+ESLINT_CWD="$ROOT_DIR"   # e.g., "$ROOT_DIR/frontend"
 
 ################################
 # Ruff (Python)
