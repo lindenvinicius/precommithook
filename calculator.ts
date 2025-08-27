@@ -1,6 +1,3 @@
-export function addition(...xs: number[]) {
-    return xs.reduce((a, b) => a + b, 0);
-}
 export function sub({ first, rest = [] }: { first: number; rest?: number[]; }): number {
     return rest.reduce((a, b) => a - b, first);
 }
