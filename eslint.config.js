@@ -1,17 +1,36 @@
 // eslint.config.js
-import js from "@eslint/js";
+import js from '@eslint/js';
+import tseslint from 'typescript-eslint';
+import globals from 'globals';
 
 export default [
-  { ignores: ["dist/**", "build/**", "node_modules/**", "*.min.js"] },
-  js.configs.recommended,
+  // Ignore common build artifacts
+  { ignores: ['**/node_modules/**', '**/dist/**', '**/build/**', '**/*.d.ts'] },
+
+  // JavaScript / JSX
   {
-    files: ["**/*.js", "**/*.jsx"],
+    files: ['**/*.{js,jsx}'],
     languageOptions: {
-      ecmaVersion: "latest",
-      sourceType: "module",
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: { ...globals.browser, ...globals.node },
     },
     rules: {
-      "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      ...js.configs.recommended.rules,
+    },
+  },
+
+  // TypeScript / TSX (uses typescript-eslint's recommended flat config)
+  ...tseslint.configs.recommended,
+
+  // Ensure TS files use the TS parser & common globals
+  {
+    files: ['**/*.{ts,tsx}'],
+    languageOptions: {
+      parser: tseslint.parser,
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: { ...globals.browser, ...globals.node },
     },
   },
 ];
