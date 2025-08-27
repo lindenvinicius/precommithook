@@ -1,12 +1,18 @@
-export function sub({ first, rest = [] }: { first: number; rest?: number[]; }): number {
-    return rest.reduce((a, b) => a - b, first);
-}
+let _id; // Implicit Declearation
+let fb_id: any; // Explicit Declearation
+fb_id = true;
+fb_id = 23423523;
 
-// Optional: evaluate simple "+/-" expressions like "10-3+2-0.5"
-export const calc = (expr: string): number => {
-  const s = expr.replace(/\s+/g, "");
-  if (!/^[+-]?\d+(\.\d+)?([+-]\d+(\.\d+)?)*$/.test(s)) {
-    throw new Error("Invalid expression");
-  }
-  return (s.match(/[+-]?\d+(\.\d+)?/g) || []).map(Number).reduce((a, b) => a + b, 0);
-};
+const firstName = "Riyad";
+const lastName: string = "Hossain";
+let isLoading: boolean;
+isLoading = false;
+
+let roll: string | number = 423;
+roll = "423";
+
+let device: string | number | boolean; // Union Type
+device = "Mobile";
+device = 4323523;
+
+const re: RegExp = /\w+/g;
