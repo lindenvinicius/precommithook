@@ -1,5 +1,5 @@
 let _id; // Implicit Declearation
-let fb_id: any; // Explicit Declearation
+let fb_id : any; // Explicit Declearation
 fb_id = true;
 fb_id = 23423523;
 
