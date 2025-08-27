@@ -34,8 +34,5 @@ jobs:
       - name: Install deps (clean)
         run: npm ci
 
-      # Optional: show ESLint problems as GitHub annotations
-      # (works out of the box since ESLint emits standard file:line:col output)
-
       - name: Lint
         run: npm run lint
