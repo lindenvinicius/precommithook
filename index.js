@@ -8,6 +8,7 @@
 /**
  * Calculator class with basic arithmetic operations
  */
+// eslint-disable-next-line no-unused-vars
 class Calculator {
   /**
    * Add two numbers
