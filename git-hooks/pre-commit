@@ -63,3 +63,10 @@ else
     echo -e "${RED}Commit aborted due to linting errors.${NC}"
     exit 1
 fi
+if ((${#JS_FILES[@]})); then
+  echo "🔎 ESLint: checking ${#JS_FILES[@]} file(s)… (no auto-fix)"
+  # Show both warnings and errors; ESLint exits 1 if there are errors
+  npx --no -- eslint --cwd "$ESLINT_CWD" --format stylish "${JS_FILES[@]}"
+fi
+
+echo "✅ Pre-commit checks passed"
